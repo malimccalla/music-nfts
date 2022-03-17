@@ -32,13 +32,12 @@ contract Artist is ReentrancyGuard {
   }
 
   function createRelease(
-    uint price,
     uint goldSupply,
     uint platinumSupply,
     uint multiPlatinumSupply,
     uint diamondSupply
   ) public {
-    Release newRelease = new Release(contractAddress, price, goldSupply, platinumSupply, multiPlatinumSupply, diamondSupply);
+    Release newRelease = new Release(contractAddress, goldSupply, platinumSupply, multiPlatinumSupply, diamondSupply);
     releases.push(newRelease);
   }
 }
@@ -52,7 +51,6 @@ contract Release is ERC1155 {
   
   constructor(
     address fundingRecipient,
-    uint price,
     uint goldSupply,
     uint platinumSupply,
     uint multiPlatinumSupply,

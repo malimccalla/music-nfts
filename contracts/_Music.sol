@@ -34,10 +34,9 @@ contract Artist is ReentrancyGuard {
   function createRelease(
     uint goldSupply,
     uint platinumSupply,
-    uint multiPlatinumSupply,
     uint diamondSupply
   ) public {
-    Release newRelease = new Release(contractAddress, goldSupply, platinumSupply, multiPlatinumSupply, diamondSupply);
+    Release newRelease = new Release(contractAddress, goldSupply, platinumSupply, diamondSupply);
     releases.push(newRelease);
   }
 }
@@ -46,20 +45,17 @@ contract Release is ERC1155 {
   // emum to identify the rarity level, this DOES NOT denote the supply of the rarity level
   uint256 public constant GOLD = 0;
   uint256 public constant PLATINUM = 1;
-  uint256 public constant MULTI_PLATINUM = 2;
-  uint256 public constant DIAMOND = 3;
+  uint256 public constant DIAMOND = 2;
   
   constructor(
     address fundingRecipient,
     uint goldSupply,
     uint platinumSupply,
-    uint multiPlatinumSupply,
     uint diamondSupply
   ) ERC1155("https://api.music.com/metadata/{id}.json") {
     // this mints the tokens at creation but its also possible to add minting functionality to the contract to mint on demand to players.
     _mint(fundingRecipient, GOLD, goldSupply, "");
     _mint(fundingRecipient, PLATINUM, platinumSupply, "");
-    _mint(fundingRecipient, MULTI_PLATINUM, multiPlatinumSupply, "");
     _mint(fundingRecipient, DIAMOND, diamondSupply, "");
   }
 }

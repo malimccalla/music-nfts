@@ -12,8 +12,12 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 contract Artist is ERC1155, AccessControl, Pausable, Ownable, ERC1155Supply {
     using Counters for Counters.Counter;
 
+    bytes32 public constant URI_SETTER_ROLE = keccak256("URI_SETTER_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
     address artistAddress;
-    string name;
+    string artistName;
 
     uint price = 0.02 ether;
 
@@ -23,11 +27,7 @@ contract Artist is ERC1155, AccessControl, Pausable, Ownable, ERC1155Supply {
     // Mapping of release id to the release
     mapping(uint256 => Release) public releaseIdToReleases;
     // Mapping of the certification token ID to the release
-    mapping(uint256 => uint256) public tokenIdToReleaseId;
-
-    bytes32 public constant URI_SETTER_ROLE = keccak256("URI_SETTER_ROLE");
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    mapping(uint256 => ReleaseCertification) public tokenIdToReleaseCertifications;
 
     // IDS for the record certifications, in order of rarity
     uint256 public constant DIAMOND = 0;
@@ -52,14 +52,14 @@ contract Artist is ERC1155, AccessControl, Pausable, Ownable, ERC1155Supply {
         ReleaseCertification gold;
     }
 
-    constructor(string memory _name, address _artistAddress) ERC1155("https://tunebase.com/api/tokens/{id}") {
+    constructor(string memory _artistName, address _artistAddress) ERC1155("https://tunebase.com/api/tokens/{id}") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(URI_SETTER_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
 
         artistAddress = _artistAddress;
-        name = _name;
+        artistName = _artistName;
 
         // Set token id start to be 1 not 0
         atTokenId.increment();
@@ -70,22 +70,32 @@ contract Artist is ERC1155, AccessControl, Pausable, Ownable, ERC1155Supply {
     function createRelease(string memory _title) public {
         require(msg.sender == artistAddress, "Only the artist can create a release");
 
-        Release memory newRelease = Release(
+        // Set the token IDs for each certification
+        uint256 diamondTokenId = atTokenId.current(); 
+        atTokenId.increment(); 
+        uint256 platinumTokenId = atTokenId.current(); 
+        atTokenId.increment(); 
+        uint256 goldTokenId = atTokenId.current();
+
+        ReleaseCertification memory diamondCert = ReleaseCertification(Certification.DIAMOND, 10, 0, diamondTokenId);
+        ReleaseCertification memory platinumCert = ReleaseCertification(Certification.PLATINUM, 30, 0, platinumTokenId);
+        ReleaseCertification memory goldCert = ReleaseCertification(Certification.GOLD, 60, 0, goldTokenId);
+
+        releaseIdToReleases[atReleaseId.current()] = Release(
             payable(artistAddress),
             _title,
             100, // Max total supply across certifications
-            ReleaseCertification(Certification.DIAMOND, 10, 0, atTokenId.current()),
-            ReleaseCertification(Certification.PLATINUM, 30, 0, atTokenId.current() + 1),
-            ReleaseCertification(Certification.GOLD, 60, 0, atTokenId.current() + 2)
+            diamondCert,
+            platinumCert,
+            goldCert
         );
 
-        releaseIdToReleases[atReleaseId.current()] = newRelease;
+        // Set a reference of token ID to release ID for diamond, platinum, and gold.
+        tokenIdToReleaseCertifications[diamondTokenId] = diamondCert;
+        tokenIdToReleaseCertifications[platinumTokenId] = platinumCert;
+        tokenIdToReleaseCertifications[goldTokenId] = goldCert;
 
-        // Set a reference for each diamond, platinum, and gold tokenId's to the release
-        tokenIdToReleaseId[atTokenId.current()] = atReleaseId.current();
-        tokenIdToReleaseId[atTokenId.current() + 1] = atReleaseId.current();
-        tokenIdToReleaseId[atTokenId.current() + 2] = atReleaseId.current();
-
+        // Increase IDs for the next release
         atReleaseId.increment();
         atTokenId.increment();
     }
@@ -94,8 +104,8 @@ contract Artist is ERC1155, AccessControl, Pausable, Ownable, ERC1155Supply {
         return releaseIdToReleases[_releaseId];
     }
 
-    function getReleaseIdByTokenId(uint _tokenId) public view returns (uint) {
-        return tokenIdToReleaseId[_tokenId];
+    function getReleaseCertificationByTokenId(uint _tokenId) public view returns (ReleaseCertification memory) {
+        return tokenIdToReleaseCertifications[_tokenId];
     }
 
     function buyRelease(uint _releaseId) public payable {
